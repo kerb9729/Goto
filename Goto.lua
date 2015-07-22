@@ -3,7 +3,7 @@ local Goto = Goto:New()
 
 Goto.addonName = "Goto"
 Goto.defaults = {}
-Goto.memberdata = {}
+Goto.playerdata = {}
 Goto.groupUnitTags = {}
 
 ZO_CreateStringId("GOTO_NAME", "Goto")
@@ -33,14 +33,12 @@ local function isInGroup(playerName)
     return false
 end
 
-local function getGuildMemberInfo(tabletopopulate)
-    local numGuilds = GetNumGuilds()
+local function getPlayerInfo(tabletopopulate)
     local punitAlliance = GetUnitAlliance("player")
     local punitName = GetUnitName("player")
     local prawUnitName = GetRawUnitName("player")
-    local guildnum
 
-    for guildnum = 1, numGuilds do
+    for guildnum = 1, GetNumGuilds() do
         local guildID = GetGuildId(guildnum)
         local numMembers = GetNumGuildMembers(guildID)
         local memberindex
@@ -54,34 +52,51 @@ local function getGuildMemberInfo(tabletopopulate)
                 mi.hasCh, mi.chname, mi.zone, mi.class, mi.alliance, mi.level, mi.vr =
                     GetGuildMemberCharacterInfo(guildID, memberindex)
                 mi.unitname = mi.chname:gsub("%^.*$", "") -- Strips all after ^
-                mi.guildnames = {GetGuildName(guildID),}
-                --d("mi.guildnames:"  .. for _,v in pairs(mi.guildnames) do print(string.format("%s\n", v) end )
+                if tabletopopulate[mi.unitname] ~= nil then
+                    mi.guildnames = string.format("%s\n%s", tabletopopulate[mi.unitname].guildnames, GetGuildName(guildID))
+                else
+                    mi.guildnames = GetGuildName(guildID)
+                end
                 -- Don't display user, other factions, or players in Cyrodiil
-                if mi.chname ~= prawUnitName and tabletopopulate[mi.unitname] == nil and mi.zone ~= "Cyrodiil" and mi.alliance == punitAlliance then
+                if mi.chname ~= prawUnitName and mi.zone ~= "Cyrodiil" and mi.alliance == punitAlliance then
                     tabletopopulate[mi.unitname] = mi
-                elseif mi.chname ~= prawUnitName and mi.zone ~= "Cyrodiil" and mi.alliance == punitAlliance then
-                    -- Already got this player's data from a different guild
-                    table.insert(tabletopopulate[mi.unitname].guildnames, mi.guildnames)
                 end
             end
         end
     end
-
-    -- Todo - friends
 
     -- This should catch group members that aren't in a guild the player is in
     for idx = 1, GetGroupSize() do
         local mi = {}
         local groupUnitTag = GetGroupUnitTagByIndex(idx)
         mi.unitname = GetUnitName(groupUnitTag)
-        if tabletopopulate[mi.unitname] == nil and groupUnitTag ~= nil and IsUnitOnline(groupUnitTag) and mi.unitname ~= punitName then
+        if mi.chname ~= prawUnitName and tabletopopulate[mi.unitname] == nil and groupUnitTag ~= nil
+                and IsUnitOnline(groupUnitTag) and mi.unitname ~= punitName then
             mi.zone = GetUnitZone(groupUnitTag)
             mi.class = GetUnitClass(groupUnitTag)
             mi.level = GetUnitLevel(groupUnitTag)
             mi.vr = GetUnitVeteranRank(groupUnitTag)
-            --mi.guildnames = {"Grouped with player", }
+            mi.guildnames = "Grouped"
 
             tabletopopulate[mi.unitname] = mi
+        end
+    end
+
+    -- This should catch any friends that are not in a guild the player is in
+    for findex = 1, GetNumFriends() do
+        local mi = {} --mi == "member info"
+
+        mi.name, mi.note, mi.status, mi.secsincelastseen = GetFriendInfo(findex)
+        if mi.status == 1 then -- only collect info for online players
+            mi.hasCh, mi.chname, mi.zone, mi.class, mi.alliance, mi.level, mi.vr =
+                GetFriendCharacterInfo(findex)
+            mi.unitname = mi.chname:gsub("%^.*$", "") -- Strips all after ^
+            mi.guildnames = "Friend"
+
+            -- Don't display user, other factions, or players in Cyrodiil
+            if  tabletopopulate[mi.unitname] == nil and mi.zone ~= "Cyrodiil" and mi.alliance == punitAlliance then
+                tabletopopulate[mi.unitname] = mi
+            end
         end
     end
 end
@@ -96,15 +111,7 @@ local function populateScrollList(listdata)
         local guildlist = nil
         local idx
 
-        if player.name ~= nil then
-            for idx = 1, #player.guildnames do
-                if guildlist ~= nil then
-                    guildlist = string.format("%s\n%s", player.guildnames[idx], guildlist)
-                else
-                    guildlist = player.guildnames[idx]
-                end
-            end
-
+        if player.name ~= nil then -- was in guild or friends list
             table.insert(scrollData, ZO_ScrollList_CreateDataEntry(GOTO_SCROLLLIST_DATA,
                 {
                     playerName = player.unitname,
@@ -113,11 +120,11 @@ local function populateScrollList(listdata)
                     playerLevel = player.level,
                     playerVr = player.vr,
                     playeratName = player.name,
-                    playerGuilds = guildlist,
+                    playerGuilds = player.guildnames,
                 }
             )
             )
-        else
+        else -- not in guild or friends list; no way to determine @name or guilds
             table.insert(scrollData, ZO_ScrollList_CreateDataEntry(GOTO_SCROLLLIST_DATA,
                 {
                     playerName = player.unitname,
@@ -126,7 +133,7 @@ local function populateScrollList(listdata)
                     playerLevel = player.level,
                     playerVr = player.vr,
                     playeratName = player.unitname,
-                    playerGuilds = "Grouped with player",
+                    playerGuilds = player.guildnames,
                 }
             )
             )
@@ -270,9 +277,9 @@ function Goto_OnInitialized()
     ZO_WorldMap.SetHidden = hook(ZO_WorldMap.SetHidden,function(base,self,value)
         base(self,value)
         if value == false then
-            Goto.memberdata = {}
-            getGuildMemberInfo(Goto.memberdata)
-            populateScrollList(Goto.memberdata)
+            Goto.playerdata = {}
+            getPlayerInfo(Goto.playerdata)
+            populateScrollList(Goto.playerdata)
         end
     end)
 end
@@ -282,15 +289,22 @@ function nameOnMouseUp(self, button, upInside)
     local sButton = tostring(button)
 
     if sButton == "1" then -- left
-        JumpToGuildMember(self:GetText())
+        local unitName = self:GetText()
+        if IsFriend(unitName) then
+            JumpToFriend(unitName)
+        elseif isInGroup(unitName) then
+            JumpToGroupMember(unitName)
+        else
+            JumpToGuildMember(unitName)
+        end
 
     elseif sButton == "2" then -- right
         ZO_ScrollList_RefreshVisible(GOTO_PANE.ScrollList)
 
     else -- middle
-        Goto.memberdata = {}
-        getGuildMemberInfo(Goto.memberdata)
-        populateScrollList(Goto.memberdata)
+        Goto.playerdata = {}
+        getPlayerInfo(Goto.playerdata)
+        populateScrollList(Goto.playerdata)
     end
 end
 --[[
