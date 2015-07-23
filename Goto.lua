@@ -73,7 +73,7 @@ local function getPlayerInfo(tabletopopulate)
         if mi.chname ~= prawUnitName and tabletopopulate[mi.unitname] == nil and groupUnitTag ~= nil
                 and IsUnitOnline(groupUnitTag) and mi.unitname ~= punitName then
             mi.zone = GetUnitZone(groupUnitTag)
-            mi.class = GetUnitClass(groupUnitTag)
+            mi.class = GetUnitClassId(groupUnitTag)
             mi.level = GetUnitLevel(groupUnitTag)
             mi.vr = GetUnitVeteranRank(groupUnitTag)
             mi.guildnames = "Grouped"
