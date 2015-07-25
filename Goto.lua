@@ -70,8 +70,8 @@ local function getPlayerInfo(tabletopopulate)
         local mi = {}
         local groupUnitTag = GetGroupUnitTagByIndex(idx)
         mi.unitname = GetUnitName(groupUnitTag)
-        if mi.chname ~= prawUnitName and tabletopopulate[mi.unitname] == nil and groupUnitTag ~= nil
-                and IsUnitOnline(groupUnitTag) and mi.unitname ~= punitName then
+        if mi.unitname ~= punitName and tabletopopulate[mi.unitname] == nil and groupUnitTag ~= nil
+                and IsUnitOnline(groupUnitTag) then
             mi.zone = GetUnitZone(groupUnitTag)
             mi.class = GetUnitClassId(groupUnitTag)
             mi.level = GetUnitLevel(groupUnitTag)
@@ -102,13 +102,11 @@ local function getPlayerInfo(tabletopopulate)
 end
 
 local function populateScrollList(listdata)
-    -- local displayed = {}
     local scrollData = ZO_ScrollList_GetDataList(GOTO_PANE.ScrollList)
 
     ZO_ClearNumericallyIndexedTable(scrollData)
 
     for _, player in pairs(listdata) do
-        local guildlist = nil
         local idx
 
         if player.name ~= nil then -- was in guild or friends list
@@ -161,7 +159,7 @@ local function createGotoPane()
     GOTO_PANE.Headers:SetHeight(32)
 
     GOTO_PANE.Headers.Name = WINDOW_MANAGER:CreateControlFromVirtual("$(parent)Name",GOTO_PANE.Headers,"ZO_SortHeader")
-    GOTO_PANE.Headers.Name:SetDimensions(115,32)
+    GOTO_PANE.Headers.Name:SetDimensions(150,32)
     GOTO_PANE.Headers.Name:SetAnchor( TOPLEFT, GOTO_PANE.Headers, TOPLEFT, 8, 0 )
     ZO_SortHeader_Initialize(GOTO_PANE.Headers.Name, "Name", "playerName", ZO_SORT_ORDER_UP, TEXT_ALIGN_LEFT, "ZoFontGameLargeBold")
     ZO_SortHeader_SetTooltip(GOTO_PANE.Headers.Name, "Sort on player name")
