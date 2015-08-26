@@ -8,7 +8,7 @@ Goto.groupUnitTags = {}
 
 ZO_CreateStringId("GOTO_NAME", "Goto")
 
-local GOTO_PANE = nil
+local GOTO_PANE = {}
 local GOTO_SCROLLLIST_DATA = 1
 local GOTO_SCROLLLIST_SORT_KEYS =
 {
@@ -20,6 +20,26 @@ local function hook(baseFunc,newFunc)
     return function(...)
         return newFunc(baseFunc,...)
     end
+end
+
+local function getpunitUnlockedZones()
+    local unlockedzones = {}
+    local difficultylevel = GetPlayerDifficultyLevel()
+    local zonename, _
+    local punitlevel = GetUnitLevel("player")
+
+    for idx = 0, difficultylevel do
+        for idy = 1, GetNumZonesForDifficultyLevel(idx) do
+            zonename, _, _ = GetCadwellZoneInfo(idx, idy)
+            unlockedzones[zonename] = 1
+        end
+    end
+    if punitlevel > 49 then
+        unlockedzones['Craglorn'] = 1
+    end
+    unlockedzones['Coldharbor'] = 1
+
+    return unlockedzones
 end
 
 local function isInGroup(playerName)
@@ -37,6 +57,7 @@ local function getPlayerInfo(tabletopopulate)
     local punitAlliance = GetUnitAlliance("player")
     local punitName = GetUnitName("player")
     local prawUnitName = GetRawUnitName("player")
+    local punitUnlockedZones = getpunitUnlockedZones()
 
     for guildnum = 1, GetNumGuilds() do
         local guildID = GetGuildId(guildnum)
@@ -58,7 +79,7 @@ local function getPlayerInfo(tabletopopulate)
                     mi.guildnames = GetGuildName(guildID)
                 end
                 -- Don't display user, other factions, or players in Cyrodiil
-                if mi.chname ~= prawUnitName and mi.zone ~= "Cyrodiil" and mi.alliance == punitAlliance then
+                if mi.chname ~= prawUnitName and mi.zone ~= "Cyrodiil" and mi.alliance == punitAlliance and punitUnlockedZones[mi.zone] ~= nil then
                     tabletopopulate[mi.unitname] = mi
                 end
             end
@@ -94,7 +115,7 @@ local function getPlayerInfo(tabletopopulate)
             mi.guildnames = "Friend"
 
             -- Don't display user, other factions, or players in Cyrodiil
-            if  tabletopopulate[mi.unitname] == nil and mi.zone ~= "Cyrodiil" and mi.alliance == punitAlliance then
+            if  tabletopopulate[mi.unitname] == nil and mi.zone ~= "Cyrodiil" and mi.alliance == punitAlliance  and punitUnlockedZones[mi.zone] ~= nil then
                 tabletopopulate[mi.unitname] = mi
             end
         end
@@ -107,8 +128,6 @@ local function populateScrollList(listdata)
     ZO_ClearNumericallyIndexedTable(scrollData)
 
     for _, player in pairs(listdata) do
-        local idx
-
         if player.name ~= nil then -- was in guild or friends list
             table.insert(scrollData, ZO_ScrollList_CreateDataEntry(GOTO_SCROLLLIST_DATA,
                 {
@@ -139,19 +158,20 @@ local function populateScrollList(listdata)
     end
 
     ZO_ScrollList_Commit(GOTO_PANE.ScrollList)
+    GOTO_PANE.sortHeaders:SelectHeaderByKey("playerName")
 end
 
 local function createGotoPane()
-	local x,y = ZO_WorldMapLocations:GetDimensions()
-	local isValidAnchor, point, relativeTo, relativePoint, offsetX, offsetY = ZO_WorldMapLocations:GetAnchor()
+    local x,y = ZO_WorldMapLocations:GetDimensions()
+    local isValidAnchor, point, relativeTo, relativePoint, offsetX, offsetY = ZO_WorldMapLocations:GetAnchor()
 
-	GOTO_PANE = WINDOW_MANAGER:CreateTopLevelWindow(nil)
-	GOTO_PANE:SetMouseEnabled(true)
-	GOTO_PANE:SetMovable( false )
-	GOTO_PANE:SetClampedToScreen(true)
-	GOTO_PANE:SetDimensions( x, y )
-	GOTO_PANE:SetAnchor( point, relativeTo, relativePoint, offsetX, offsetY )
-	GOTO_PANE:SetHidden( true )
+    GOTO_PANE = WINDOW_MANAGER:CreateTopLevelWindow(nil)
+    GOTO_PANE:SetMouseEnabled(true)
+    GOTO_PANE:SetMovable( false )
+    GOTO_PANE:SetClampedToScreen(true)
+    GOTO_PANE:SetDimensions( x, y )
+    GOTO_PANE:SetAnchor( point, relativeTo, relativePoint, offsetX, offsetY )
+    GOTO_PANE:SetHidden( true )
 
     -- Create Sort Headers
     GOTO_PANE.Headers = WINDOW_MANAGER:CreateControl("$(parent)Headers",GOTO_PANE,nil)
@@ -170,19 +190,28 @@ local function createGotoPane()
     ZO_SortHeader_Initialize(GOTO_PANE.Headers.Location, "Zone", "zoneName", ZO_SORT_ORDER_UP, TEXT_ALIGN_LEFT, "ZoFontGameLargeBold")
     ZO_SortHeader_SetTooltip(GOTO_PANE.Headers.Location, "Sort on zone")
 
-    local sortHeaders = ZO_SortHeaderGroup:New(GOTO_PANE:GetNamedChild("Headers"), SHOW_ARROWS)
-    sortHeaders:RegisterCallback(
+    GOTO_PANE.sortHeaders = ZO_SortHeaderGroup:New(GOTO_PANE:GetNamedChild("Headers"), SHOW_ARROWS)
+    GOTO_PANE.sortHeaders:RegisterCallback(
         ZO_SortHeaderGroup.HEADER_CLICKED,
         function(key, order)
             table.sort(
                 ZO_ScrollList_GetDataList(GOTO_PANE.ScrollList),
                 function(entry1, entry2)
+                    if isInGroup(entry1.data.playerName) then
+                        if not isInGroup(entry2.data.playerName) then
+                            return true -- 1 (group member) comes before 2 (non-member)
+                        end
+                    else
+                        if isInGroup(entry2.data.playerName) then
+                            return false -- 1 (non-member) comes after 2 (group member)
+                        end
+                    end
+                    -- both members or both non-members, break the tie using the usual column sorting rules
                     return ZO_TableOrderingFunction(entry1.data, entry2.data, key, GOTO_SCROLLLIST_SORT_KEYS, order)
                 end)
-
             ZO_ScrollList_Commit(GOTO_PANE.ScrollList)
         end)
-    sortHeaders:AddHeadersFromContainer()
+    GOTO_PANE.sortHeaders:AddHeadersFromContainer()
 
     -- Create a scrollList
     GOTO_PANE.ScrollList = WINDOW_MANAGER:CreateControlFromVirtual("$(parent)GotoScrollList", GOTO_PANE, "ZO_ScrollList")
@@ -237,24 +266,41 @@ local function createGotoPane()
     }
 
     --
-	-- Create a fragment from the window and add it to the modeBar of the WorldMap RightPane
-	--
-	local gotoFragment = ZO_FadeSceneFragment:New(GOTO_PANE)
-	WORLD_MAP_INFO.modeBar:Add(GOTO_NAME, {gotoFragment}, buttonData)
-
+    -- Create a fragment from the window and add it to the modeBar of the WorldMap RightPane
+    --
+    local gotoFragment = ZO_FadeSceneFragment:New(GOTO_PANE)
+    WORLD_MAP_INFO.modeBar:Add(GOTO_NAME, {gotoFragment}, buttonData)
 end
 
+
+local function processSlashCommands(argslist)
+    d("Under Construction")
+    --[[
+    local options = {}
+    local searchResult = { string.match(argslist,"^(%S*)%s*(.-)$") }
+    for i,v in pairs(searchResult) do
+        if (v ~= nil and v ~= "") then
+            options[i] = string.lower(v)
+        end
+    end
+    if #options == 0 or options[1] == "help" then
+        d("/j @name\tJump to shrine nearest @name")
+        d("/j aliasname\tJump to shrine nearest character with alias \"aliasname\"")
+        d("/j leader\tJump to party leader")
+        d("/galias @name|\"character name\" aliasname")
+        d("-- assign aliasname to either @name or \"character name\"")
+    end
+    --]]
+end
 
 function Goto:EVENT_ADD_ON_LOADED(eventCode, addonName, ...)
     if addonName == Goto.addonName then
         Goto.SavedVariables = ZO_SavedVars:New("Goto_SavedVariables", 2, nil, Goto.defaults)
         createGotoPane()
 
-        --SLASH_COMMANDS["/goto"] = processSlashCommands
+        SLASH_COMMANDS["/j"] = processSlashCommands
+        SLASH_COMMANDS["/galias"] = processSlashCommands
 
-        --
-        -- Unregister events we are not using anymore
-        --
         EVENT_MANAGER:UnregisterForEvent(Goto.addonName, EVENT_ADD_ON_LOADED)
     end
 end
@@ -262,9 +308,6 @@ end
 
 function Goto:EVENT_PLAYER_ACTIVATED(...)
     d("|cFF2222Goto|r addon loaded")
-    --
-    -- Only once so unreg is from further events
-    --
     EVENT_MANAGER:UnregisterForEvent(Goto.addonName, EVENT_PLAYER_ACTIVATED)
 end
 
@@ -284,10 +327,9 @@ end
 
 function nameOnMouseUp(self, button, upInside)
     --d("MouseUp:" .. self:GetText() .. ":" .. tostring(button) .. ":" .. tostring(upInside) )
-    local sButton = tostring(button)
+    local unitName = self:GetText()
 
-    if sButton == "1" then -- left
-        local unitName = self:GetText()
+    if button == 1 then -- left
         if IsFriend(unitName) then
             JumpToFriend(unitName)
         elseif isInGroup(unitName) then
@@ -296,7 +338,7 @@ function nameOnMouseUp(self, button, upInside)
             JumpToGuildMember(unitName)
         end
 
-    elseif sButton == "2" then -- right
+    elseif button == 2 then -- right
         ZO_ScrollList_RefreshVisible(GOTO_PANE.ScrollList)
 
     else -- middle
@@ -305,8 +347,4 @@ function nameOnMouseUp(self, button, upInside)
         populateScrollList(Goto.playerdata)
     end
 end
---[[
-EVENT_GROUP_MEMBER_JOINED (integer eventCode, string memberName)
-EVENT_GROUP_MEMBER_LEFT (integer eventCode, string memberName, integer reason, bool wasLocalPlayer)
 
---]]
