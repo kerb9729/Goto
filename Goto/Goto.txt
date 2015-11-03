@@ -1,6 +1,6 @@
 ## Title: Goto
-## APIVersion: 100011
-## Version: 1.04
+## APIVersion: 100013
+## Version: 1.06
 ## Author: @gardhull
 
 Goto.lua
