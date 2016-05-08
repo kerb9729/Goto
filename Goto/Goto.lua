@@ -28,6 +28,10 @@ local function getpunitUnlockedZones()
     local zonename, _
     local punitlevel = GetUnitLevel("player")
 
+    if punitlevel > 49 then
+        difficultylevel = 2
+    end
+
     for idx = 0, difficultylevel do
         for idy = 1, GetNumZonesForDifficultyLevel(idx) do
             zonename, _, _ = GetCadwellZoneInfo(idx, idy)
