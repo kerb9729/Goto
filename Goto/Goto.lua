@@ -42,6 +42,9 @@ local function getpunitUnlockedZones()
         unlockedzones['Craglorn'] = 1
     end
     unlockedzones['Coldharbor'] = 1
+    unlockedzones['Wrothgar'] = 1
+    unlockedzones["Hew's Bane"] = 1
+    unlockedzones['The Gold Coast'] = 1
 
     return unlockedzones
 end
@@ -240,7 +243,7 @@ local function createGotoPane()
             if data.playerLevel < 50 then
                 displayedlevel = data.playerLevel
             else
-                displayedlevel = "VR" .. data.playerVr
+                displayedlevel = "CP" .. data.playerVr
             end
 
             nameLabel.tooltipText = string.format("%s\n%s %s\n%s",
