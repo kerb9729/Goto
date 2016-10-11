@@ -30,9 +30,9 @@
             </Controls>
         </Control>
         <TopLevelControl name="Goto">
-            <OnInitialized>
+            <!--<OnInitialized>
                 Goto_OnInitialized()
-            </OnInitialized>
+            </OnInitialized> -->
         </TopLevelControl>
     </Controls>
 </GuiXml>
