@@ -10,9 +10,7 @@ ZO_CreateStringId("GOTO_NAME", "Goto")
 
 local GOTO_PANE = {}
 local GOTO_SCROLLLIST_DATA = 1
-local GOTO_SCROLLLIST_SORT_KEYS =
-
-{
+local GOTO_SCROLLLIST_SORT_KEYS = {
     ["zoneName"] = { },
     ["playerName"] = {  tiebreaker = "zoneName" },
 }
@@ -26,7 +24,7 @@ end
 local function getpunitUnlockedZones()
     local unlockedzones = {}
     local difficultylevel = 2
-    local zonename, _
+    local zonename, _, idx, idy
 
     for idx = 0, difficultylevel do
         for idy = 1, GetNumZonesForDifficultyLevel(idx) do
@@ -69,6 +67,7 @@ local function getpunitUnlockedZones()
 end
 
 local function isInGroup(playerName)
+    local idx
     for idx = 1, GetGroupSize() do
         local groupUnitTag = GetGroupUnitTagByIndex(idx)
         local unitName = GetUnitName(groupUnitTag)
@@ -83,6 +82,7 @@ local function getPlayerInfo(tabletopopulate)
     local punitName = GetUnitName("player")
     local prawUnitName = GetRawUnitName("player")
     local punitUnlockedZones = getpunitUnlockedZones()
+    local guildnum, idx, findex
 
     for guildnum = 1, GetNumGuilds() do
         local guildID = GetGuildId(guildnum)
@@ -149,6 +149,7 @@ local function getPlayerInfo(tabletopopulate)
 end
 
 local function populateScrollList(listdata)
+    local player
     local scrollData = ZO_ScrollList_GetDataList(GOTO_PANE.ScrollList)
 
     ZO_ClearNumericallyIndexedTable(scrollData)
@@ -343,26 +344,12 @@ end
 
 
 function Goto:EVENT_PLAYER_ACTIVATED(...)
-    d("|cFF2222Goto|r addon loaded")
+    --d("|cFF2222Goto|r addon loaded")
     EVENT_MANAGER:UnregisterForEvent(Goto.addonName, EVENT_PLAYER_ACTIVATED)
 end
 
 
 EVENT_MANAGER:RegisterForEvent(Goto.addonName, EVENT_ADD_ON_LOADED, function(...) Goto:EVENT_ADD_ON_LOADED(...) end )
-
---[[function Goto_OnInitialized()
-    EVENT_MANAGER:RegisterForEvent(Goto.addonName, EVENT_ADD_ON_LOADED, function(...) Goto:EVENT_ADD_ON_LOADED(...) end )
-    EVENT_MANAGER:RegisterForEvent(Goto.addonName, EVENT_PLAYER_ACTIVATED, function(...) Goto:EVENT_PLAYER_ACTIVATED(...) end)
-    ZO_WorldMap.SetHidden = hook(ZO_WorldMap.SetHidden,function(base,self,value)
-        base(self,value)
-        if value == false then
-            Goto.playerdata = {}
-            getPlayerInfo(Goto.playerdata)
-            populateScrollList(Goto.playerdata)
-        end
-    end)
-end
---]]
 
 
 function nameOnMouseUp(self, button, upInside)
