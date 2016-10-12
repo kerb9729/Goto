@@ -1,5 +1,5 @@
-local Goto = ZO_Object:Subclass()
-local Goto = Goto:New()
+local Goto_template = ZO_Object:Subclass()
+local Goto = Goto_template:New()
 
 Goto.addonName = "Goto"
 Goto.defaults = {}
@@ -11,9 +11,10 @@ ZO_CreateStringId("GOTO_NAME", "Goto")
 local GOTO_PANE = {}
 local GOTO_SCROLLLIST_DATA = 1
 local GOTO_SCROLLLIST_SORT_KEYS =
+
 {
-    ["playerName"] = { },
-    ["zoneName"] = {  tiebreaker = "playerName" },
+    ["zoneName"] = { },
+    ["playerName"] = {  tiebreaker = "zoneName" },
 }
 
 local function hook(baseFunc,newFunc)
@@ -24,13 +25,8 @@ end
 
 local function getpunitUnlockedZones()
     local unlockedzones = {}
-    local difficultylevel = GetPlayerDifficultyLevel()
+    local difficultylevel = 2
     local zonename, _
-    local punitlevel = GetUnitLevel("player")
-
-    if punitlevel > 49 then
-        difficultylevel = 2
-    end
 
     for idx = 0, difficultylevel do
         for idy = 1, GetNumZonesForDifficultyLevel(idx) do
@@ -38,13 +34,36 @@ local function getpunitUnlockedZones()
             unlockedzones[zonename] = 1
         end
     end
-    if punitlevel > 49 then
-        unlockedzones['Craglorn'] = 1
+
+    unlockedzones[GetZoneNameByIndex(GetZoneIndex(603))] = 1
+    unlockedzones[GetZoneNameByIndex(GetZoneIndex(347))] = 1
+
+    -- DLC -- Thanks to Ayantir for showing me how to determine what DLC exists and
+    -- whether it is unlocked
+    --[[
+      491 - SoH
+      306 - Dark brotherhood
+      254 - Thieves Guild
+      215 - Orsinium
+      154 - Imperial City
+      ]]
+    -- Create a table with DLC id <--> zone list
+
+    local _, _, numCollectibles, _, _, _, _ = GetCollectibleCategoryInfo(COLLECTIBLE_CATEGORY_TYPE_DLC)
+    for i=1, numCollectibles do
+        local collectibleId = GetCollectibleId(COLLECTIBLE_CATEGORY_TYPE_DLC, nil, i)
+        local collectibleName, _, _, _, unlocked = GetCollectibleInfo(collectibleId)
+        d("DLC ".. collectibleName .. "( ".. collectibleId .. ") unlocked : " .. tostring(unlocked))
+        if unlocked then
+            if collectibleId == 215 then
+                unlockedzones['Wrothgar'] = 1
+            elseif collectibleId == 254 then
+                unlockedzones["Hew's Bane"] = 1
+            elseif collectibleId == 306 then
+                unlockedzones['The Gold Coast'] = 1
+            end
+        end
     end
-    unlockedzones['Coldharbor'] = 1
-    unlockedzones['Wrothgar'] = 1
-    unlockedzones["Hew's Bane"] = 1
-    unlockedzones['The Gold Coast'] = 1
 
     return unlockedzones
 end
@@ -61,7 +80,6 @@ local function isInGroup(playerName)
 end
 
 local function getPlayerInfo(tabletopopulate)
-    local punitAlliance = GetUnitAlliance("player")
     local punitName = GetUnitName("player")
     local prawUnitName = GetRawUnitName("player")
     local punitUnlockedZones = getpunitUnlockedZones()
@@ -79,14 +97,15 @@ local function getPlayerInfo(tabletopopulate)
             if mi.status == 1 then -- only collect info for online players
                 mi.hasCh, mi.chname, mi.zone, mi.class, mi.alliance, mi.level, mi.vr =
                     GetGuildMemberCharacterInfo(guildID, memberindex)
-                mi.unitname = mi.chname:gsub("%^.*$", "") -- Strips all after ^
+                --mi.unitname = mi.chname:gsub("%^.*$", "") -- Strips all after ^
+                mi.unitname = mi.chname
                 if tabletopopulate[mi.unitname] ~= nil then
-                    mi.guildnames = string.format("%s\n%s", tabletopopulate[mi.unitname].guildnames, GetGuildName(guildID))
+                    mi.guildnames = zo_strformat("<<T:1>>\n<<T:2>>", tabletopopulate[mi.unitname].guildnames, GetGuildName(guildID))
                 else
                     mi.guildnames = GetGuildName(guildID)
                 end
-                -- Don't display user, other factions, or players in Cyrodiil
-                if mi.chname ~= prawUnitName and mi.zone ~= "Cyrodiil" and mi.alliance == punitAlliance and punitUnlockedZones[mi.zone] ~= nil then
+                -- Don't display user, players in Cyrodiil
+                if mi.chname ~= prawUnitName and mi.zone ~= "Cyrodiil" and punitUnlockedZones[mi.zone] ~= nil then
                     tabletopopulate[mi.unitname] = mi
                 end
             end
@@ -118,11 +137,11 @@ local function getPlayerInfo(tabletopopulate)
         if mi.status == 1 then -- only collect info for online players
             mi.hasCh, mi.chname, mi.zone, mi.class, mi.alliance, mi.level, mi.vr =
                 GetFriendCharacterInfo(findex)
-            mi.unitname = mi.chname:gsub("%^.*$", "") -- Strips all after ^
+            mi.unitname = mi.chname
             mi.guildnames = "Friend"
 
-            -- Don't display user, other factions, or players in Cyrodiil
-            if  tabletopopulate[mi.unitname] == nil and mi.zone ~= "Cyrodiil" and mi.alliance == punitAlliance  and punitUnlockedZones[mi.zone] ~= nil then
+            -- Don't display user, or players in Cyrodiil
+            if  tabletopopulate[mi.unitname] == nil and mi.zone ~= "Cyrodiil" and punitUnlockedZones[mi.zone] ~= nil then
                 tabletopopulate[mi.unitname] = mi
             end
         end
@@ -165,12 +184,12 @@ local function populateScrollList(listdata)
     end
 
     ZO_ScrollList_Commit(GOTO_PANE.ScrollList)
-    GOTO_PANE.sortHeaders:SelectHeaderByKey("playerName")
+    GOTO_PANE.sortHeaders:SelectHeaderByKey("zoneName")
 end
 
 local function createGotoPane()
     local x,y = ZO_WorldMapLocations:GetDimensions()
-    local isValidAnchor, point, relativeTo, relativePoint, offsetX, offsetY = ZO_WorldMapLocations:GetAnchor()
+    local _, point, relativeTo, relativePoint, offsetX, offsetY = ZO_WorldMapLocations:GetAnchor()
 
     GOTO_PANE = WINDOW_MANAGER:CreateTopLevelWindow(nil)
     GOTO_PANE:SetMouseEnabled(true)
@@ -234,11 +253,10 @@ local function createGotoPane()
 
             local friendColor = ZO_ColorDef:New(0.3, 1, 0, 1)
             local groupColor = ZO_ColorDef:New(0.46, .73, .76, 1)
-            local selectedColor = ZO_ColorDef:New(0.7, 0, 0, 1)
 
             local displayedlevel = nil
 
-            nameLabel:SetText(data.playerName)
+            nameLabel:SetText(zo_strformat("<<T:1>>", data.playerName))
 
             if data.playerLevel < 50 then
                 displayedlevel = data.playerLevel
@@ -246,10 +264,10 @@ local function createGotoPane()
                 displayedlevel = "CP" .. data.playerVr
             end
 
-            nameLabel.tooltipText = string.format("%s\n%s %s\n%s",
+            nameLabel.tooltipText = zo_strformat("<<T:1>>\n<<X:2>> <<X:3>>\n<<X:4>>",
                 data.playeratName, displayedlevel, GetClassName(1, data.playerClass), data.playerGuilds)
 
-            locationLabel:SetText(data.zoneName)
+            locationLabel:SetText(zo_strformat("<<C:1>>", data.zoneName))
 
             if isInGroup(data.playerName) then
                 ZO_SelectableLabel_SetNormalColor(nameLabel, groupColor)
@@ -300,7 +318,15 @@ local function processSlashCommands(argslist)
     --]]
 end
 
-function Goto:EVENT_ADD_ON_LOADED(eventCode, addonName, ...)
+local function WorldMapStateChanged(_, newState)
+    if (newState == SCENE_SHOWING) then
+    	Goto.playerdata = { }
+    	getPlayerInfo(Goto.playerdata)
+        populateScrollList(Goto.playerdata)
+    end
+end
+
+function Goto:EVENT_ADD_ON_LOADED(_, addonName, ...)
     if addonName == Goto.addonName then
         Goto.SavedVariables = ZO_SavedVars:New("Goto_SavedVariables", 2, nil, Goto.defaults)
         createGotoPane()
@@ -309,6 +335,9 @@ function Goto:EVENT_ADD_ON_LOADED(eventCode, addonName, ...)
         SLASH_COMMANDS["/galias"] = processSlashCommands
 
         EVENT_MANAGER:UnregisterForEvent(Goto.addonName, EVENT_ADD_ON_LOADED)
+        EVENT_MANAGER:RegisterForEvent(Goto.addonName, EVENT_PLAYER_ACTIVATED, function(...) Goto:EVENT_PLAYER_ACTIVATED(...) end)
+        WORLD_MAP_SCENE:RegisterCallback("StateChange", WorldMapStateChanged)
+        GAMEPAD_WORLD_MAP_SCENE:RegisterCallback("StateChange", WorldMapStateChanged)
     end
 end
 
@@ -319,7 +348,9 @@ function Goto:EVENT_PLAYER_ACTIVATED(...)
 end
 
 
-function Goto_OnInitialized()
+EVENT_MANAGER:RegisterForEvent(Goto.addonName, EVENT_ADD_ON_LOADED, function(...) Goto:EVENT_ADD_ON_LOADED(...) end )
+
+--[[function Goto_OnInitialized()
     EVENT_MANAGER:RegisterForEvent(Goto.addonName, EVENT_ADD_ON_LOADED, function(...) Goto:EVENT_ADD_ON_LOADED(...) end )
     EVENT_MANAGER:RegisterForEvent(Goto.addonName, EVENT_PLAYER_ACTIVATED, function(...) Goto:EVENT_PLAYER_ACTIVATED(...) end)
     ZO_WorldMap.SetHidden = hook(ZO_WorldMap.SetHidden,function(base,self,value)
@@ -331,6 +362,8 @@ function Goto_OnInitialized()
         end
     end)
 end
+--]]
+
 
 function nameOnMouseUp(self, button, upInside)
     --d("MouseUp:" .. self:GetText() .. ":" .. tostring(button) .. ":" .. tostring(upInside) )
