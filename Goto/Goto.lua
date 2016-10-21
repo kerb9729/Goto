@@ -33,12 +33,18 @@ local function getpunitUnlockedZones()
         end
     end
 
-    unlockedzones[GetZoneNameByIndex(GetZoneIndex(603))] = 1
-    unlockedzones[GetZoneNameByIndex(GetZoneIndex(347))] = 1
+    unlockedzones[GetZoneNameByIndex(GetZoneIndex(888))] = 1 -- Craglorn
+    unlockedzones[GetZoneNameByIndex(GetZoneIndex(347))] = 1 -- Coldharbor
+    unlockedzones[GetZoneNameByIndex(GetZoneIndex(535))] = 1 -- Betnikh
+    unlockedzones[GetZoneNameByIndex(GetZoneIndex(534))] = 1 -- Stros M'Kai
+    unlockedzones[GetZoneNameByIndex(GetZoneIndex(537))] = 1 --[537] = "Khenarthi's Roost"
+    unlockedzones[GetZoneNameByIndex(GetZoneIndex(281))] = 1 --[281] = "Bal Foyen
+    unlockedzones[GetZoneNameByIndex(GetZoneIndex(280))] = 1 --[280] = "Bleakrock Isle"
+
 
     -- DLC -- Thanks to Ayantir for showing me how to determine what DLC exists and
     -- whether it is unlocked
-    --[[
+    --[[ collectible ids
       491 - SoH
       306 - Dark brotherhood
       254 - Thieves Guild
@@ -78,6 +84,9 @@ local function isInGroup(playerName)
     return false
 end
 
+local function getUnitInfo(atname)
+end
+
 local function getPlayerInfo(tabletopopulate)
     local punitName = GetUnitName("player")
     local prawUnitName = GetRawUnitName("player")
@@ -97,7 +106,6 @@ local function getPlayerInfo(tabletopopulate)
             if mi.status == 1 then -- only collect info for online players
                 mi.hasCh, mi.chname, mi.zone, mi.class, mi.alliance, mi.level, mi.vr =
                     GetGuildMemberCharacterInfo(guildID, memberindex)
-                --mi.unitname = mi.chname:gsub("%^.*$", "") -- Strips all after ^
                 mi.unitname = mi.chname
                 if tabletopopulate[mi.unitname] ~= nil then
                     mi.guildnames = zo_strformat("<<T:1>>\n<<T:2>>", tabletopopulate[mi.unitname].guildnames, GetGuildName(guildID))
@@ -299,9 +307,11 @@ local function createGotoPane()
 end
 
 
+
+local function debugZone(zonename) end
+
 local function processSlashCommands(argslist)
     d("Under Construction")
-    --[[
     local options = {}
     local searchResult = { string.match(argslist,"^(%S*)%s*(.-)$") }
     for i,v in pairs(searchResult) do
@@ -309,14 +319,27 @@ local function processSlashCommands(argslist)
             options[i] = string.lower(v)
         end
     end
-    if #options == 0 or options[1] == "help" then
-        d("/j @name\tJump to shrine nearest @name")
-        d("/j aliasname\tJump to shrine nearest character with alias \"aliasname\"")
-        d("/j leader\tJump to party leader")
-        d("/galias @name|\"character name\" aliasname")
-        d("-- assign aliasname to either @name or \"character name\"")
+
+    local function help()
+        --d("/j @name\tJump to shrine nearest @name")
+        --d("/j aliasname\tJump to shrine nearest character with alias \"aliasname\"")
+        --d("/j leader\tJump to party leader")
+        --d("/galias @name|\"character name\" aliasname")
+        --d("-- assign aliasname to either @name or \"character name\"")
+        -- d("/j debug zonename\tDebug zone (there's a friend there, why isn't it in my list?)")
+        d("Under Construction")
     end
-    --]]
+    if #options == 0 or options[1] == "help" then
+        help()
+    elseif options[1] == "debug" then
+        if options[2] ~= nil then
+            debugZone(options[2])
+        else
+            help()
+        end
+    else
+        help()
+    end
 end
 
 local function WorldMapStateChanged(_, newState)
@@ -333,7 +356,6 @@ function Goto:EVENT_ADD_ON_LOADED(_, addonName, ...)
         createGotoPane()
 
         SLASH_COMMANDS["/j"] = processSlashCommands
-        SLASH_COMMANDS["/galias"] = processSlashCommands
 
         EVENT_MANAGER:UnregisterForEvent(Goto.addonName, EVENT_ADD_ON_LOADED)
         EVENT_MANAGER:RegisterForEvent(Goto.addonName, EVENT_PLAYER_ACTIVATED, function(...) Goto:EVENT_PLAYER_ACTIVATED(...) end)
