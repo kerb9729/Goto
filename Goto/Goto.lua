@@ -15,6 +15,8 @@ local GOTO_SCROLLLIST_SORT_KEYS = {
     ["playerName"] = {  tiebreaker = "zoneName" },
 }
 
+goto_debug_unlocked_dlc = false
+
 local function hook(baseFunc,newFunc)
     return function(...)
         return newFunc(baseFunc,...)
@@ -57,7 +59,9 @@ local function getpunitUnlockedZones()
     for i=1, numCollectibles do
         local collectibleId = GetCollectibleId(COLLECTIBLE_CATEGORY_TYPE_DLC, nil, i)
         local collectibleName, _, _, _, unlocked = GetCollectibleInfo(collectibleId)
-        d("DLC ".. collectibleName .. "( ".. collectibleId .. ") unlocked : " .. tostring(unlocked))
+        if goto_debug_ublocked_dlc then
+            d("DLC ".. collectibleName .. "( ".. collectibleId .. ") unlocked : " .. tostring(unlocked))
+        end
         if unlocked then
             if collectibleId == 215 then
                 unlockedzones['Wrothgar'] = 1
@@ -263,7 +267,7 @@ local function createGotoPane()
             local friendColor = ZO_ColorDef:New(0.3, 1, 0, 1)
             local groupColor = ZO_ColorDef:New(0.46, .73, .76, 1)
 
-            local displayedlevel = nil
+            local displayedlevel = 0
 
             nameLabel:SetText(zo_strformat("<<T:1>>", data.playerName))
 
@@ -311,7 +315,6 @@ end
 local function debugZone(zonename) end
 
 local function processSlashCommands(argslist)
-    d("Under Construction")
     local options = {}
     local searchResult = { string.match(argslist,"^(%S*)%s*(.-)$") }
     for i,v in pairs(searchResult) do
@@ -321,13 +324,14 @@ local function processSlashCommands(argslist)
     end
 
     local function help()
-        --d("/j @name\tJump to shrine nearest @name")
-        --d("/j aliasname\tJump to shrine nearest character with alias \"aliasname\"")
-        --d("/j leader\tJump to party leader")
+        --d("/goto @name\tJump to shrine nearest @name")
+        --d("/goto aliasname\tJump to shrine nearest character with alias \"aliasname\"")
+        --d("/goto leader\tJump to party leader")
         --d("/galias @name|\"character name\" aliasname")
         --d("-- assign aliasname to either @name or \"character name\"")
-        -- d("/j debug zonename\tDebug zone (there's a friend there, why isn't it in my list?)")
+        -- d("/goto debug zonename\tDebug zone (there's a friend there, why isn't it in my list?)")
         d("Under Construction")
+        d("/goto debugdlc\tToggle DLC debug info")
     end
     if #options == 0 or options[1] == "help" then
         help()
@@ -337,6 +341,15 @@ local function processSlashCommands(argslist)
         else
             help()
         end
+    elseif options[1] == "debugdlc" then
+        if goto_debug_unlocked_dlc == true then
+            d("Disabling goto dlc debug")
+            goto_debug_unlocked_dlc = false
+        else
+            d("Enabling goto dlc debug")
+            goto_debug_unlocked_dlc = true
+        end
+        d("goto_debug_unlocked_dlc:" .. tostring(goto_debug_unlocked_dlc))
     else
         help()
     end
@@ -355,7 +368,7 @@ function Goto:EVENT_ADD_ON_LOADED(_, addonName, ...)
         Goto.SavedVariables = ZO_SavedVars:New("Goto_SavedVariables", 2, nil, Goto.defaults)
         createGotoPane()
 
-        SLASH_COMMANDS["/j"] = processSlashCommands
+        SLASH_COMMANDS["/goto"] = processSlashCommands
 
         EVENT_MANAGER:UnregisterForEvent(Goto.addonName, EVENT_ADD_ON_LOADED)
         EVENT_MANAGER:RegisterForEvent(Goto.addonName, EVENT_PLAYER_ACTIVATED, function(...) Goto:EVENT_PLAYER_ACTIVATED(...) end)
