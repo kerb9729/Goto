@@ -1,6 +1,6 @@
 ## Title: Goto
-## APIVersion: 100018
-## Version: 1.14
+## APIVersion: 101041
+## Version: 1.1041
 ## Author: @gardhull
 ## OptionalDependsOn: LibWorldMapInfoTab
 
